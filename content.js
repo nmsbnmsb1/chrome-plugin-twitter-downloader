@@ -105,6 +105,16 @@ async function getStore(key, defaultValue) {
 async function setStore(key, value) {
     await chrome.storage.local.set({ [key]: value });
 }
+const tweetJSONStore = {}
+function getTweetJSONStore(status_id) {
+    if (!tweetJSONStore[status_id]) return
+    let { json, ts } = tweetJSONStore[status_id]
+    if (Date.now() - ts > 1000 * 60 * 3) return
+    return json
+}
+function setTweetJSONStore(status_id, json) {
+    tweetJSONStore[status_id] = { json, ts: Date.now() }
+}
 async function rwHistory(value) {
     let data = await getStore('download_history', [])
     if (value) {
@@ -305,15 +315,20 @@ async function click(btn, status_id, is_exist, index) {
     }
 }
 async function getTweet(status_id, index, out) {
-    let json = await fetchJson(status_id)
+    //加一个缓存，避免多次调用api,但是仅缓存主推文的内容
+    let json = getTweetJSONStore(status_id)
+    if (!json) {
+        json = await fetchJson(status_id);
+    }
+    let tweet = json.quoted_status_result?.result?.legacy?.media//此媒体存在,属于引用推文
+        || json.quoted_status_result?.result?.legacy
+        || json.legacy
+    if (!tweet.in_reply_to_status_id_str) setTweetJSONStore(status_id, json)
+    //
     if (json?.card) {
         //setStatus(btn, 'failed', 'This tweet contains a link, which is not supported by this script.')
         return 'This tweet contains a link, which is not supported by this script.'
     }
-    //
-    let tweet = json.quoted_status_result?.result?.legacy?.media//此媒体存在,属于引用推文
-        || json.quoted_status_result?.result?.legacy
-        || json.legacy
     let medias = tweet.extended_entities && tweet.extended_entities.media
     if (!Array.isArray(medias)) {
         //setStatus(btn, 'failed', 'MEDIA_NOT_FOUND')
