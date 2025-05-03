@@ -243,14 +243,11 @@ function addButtonTo(article) {
     }
 }
 function addButtonToMedia(listitems) {
-    if (listitems.length) {
-        console.log(listitems);
-        console.log(listitems[0])
-    }
     listitems.forEach(li => {
         if (li.dataset.detected) return
         li.dataset.detected = 'true'
-        let status_id = li.querySelector('a[href*="/status/"]').href.split('/status/').pop().split('/').shift()
+        let status_id = li.querySelector('a[href*="/status/"]')?.href.split('/status/').pop().split('/').shift()
+        if (!status_id) return;
         let is_exist = history.indexOf(status_id) >= 0
         let btn_down = document.createElement('div')
         btn_down.innerHTML = '<div><div><svg viewBox="0 0 24 24" style="width: 18px; height: 18px;">' + SVG + '</svg></div></div>'
@@ -276,7 +273,7 @@ async function click(btn, status_id, is_exist, index) {
     //如果是回复推文
     let isReply = info.tweet.in_reply_to_status_id_str !== undefined
     if (!isReply) {
-        dir = `${info.author}/${info['date-time-local']} ${info.simple_content}`;
+        dir = `${info.author}/${info['date-time-local']}${info.simple_content ? ` ${info.simple_content}` : ''}`;
     } else {
         //抓取主贴信息
         let mainInfo = await getTweet(info.tweet.in_reply_to_status_id_str, undefined, out)
@@ -284,7 +281,7 @@ async function click(btn, status_id, is_exist, index) {
             setStatus(btn, 'failed', mainInfo)
             return
         }
-        dir = `${mainInfo.author}/${mainInfo['date-time-local']} ${mainInfo.simple_content}`;
+        dir = `${mainInfo.author}/${mainInfo['date-time-local']}${mainInfo.simple_content ? ` ${mainInfo.simple_content}` : ''}`;
     }
     //
     let save_history = await getStore('save_history', true)
@@ -339,7 +336,7 @@ async function getTweet(status_id, index, out) {
     info['date-time-local'] = formatDate(tweet.created_at, datetime, true)
     info['full-text'] = tweet.full_text.split('\n').join(' ').replace(/\s*https:\/\/t\.co\/\w+/g, '').replace(/[\\/|<>*?:"\u200b-\u200d\u2060\ufeff]/g, v => invalid_chars[v])
     info.author = `${info['user-name']}(@${info['user-id']})`
-    info.simple_content = `${info['full-text'].length > 16 ? `${info['full-text'].substring(0, 16)}` : info['full-text']}`
+    info.simple_content = Array.from(info['full-text']).slice(0, 16).join('').trim()
     return info;
 }
 const downloader = (function () {
