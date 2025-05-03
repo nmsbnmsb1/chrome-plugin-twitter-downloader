@@ -1,0 +1,41 @@
+.twitter-downloader-button {
+    margin-left: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 9999px;
+    transition: background-color 0.2s;
+    color: rgb(83, 100, 113);
+}
+
+.twitter-downloader-button:hover {
+    background-color: rgba(29, 161, 242, 0.1);
+    color: rgb(29, 161, 242);
+}
+
+.twitter-downloader-button svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+/* 添加悬停效果 */
+.twitter-downloader-button:hover svg {
+    fill: rgb(29, 161, 242);
+}
+
+/* 确保按钮在推文操作栏中正确对齐 */
+.twitter-downloader-button>div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 确保按钮在操作栏中正确对齐 */
+[role="group"] .twitter-downloader-button {
+    margin-left: 0;
+    margin-right: 8px;
+}
