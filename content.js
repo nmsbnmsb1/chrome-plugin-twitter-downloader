@@ -326,6 +326,7 @@ async function getTweet(status_id, index, out) {
     if (!tweet.in_reply_to_status_id_str) setTweetJSONStore(status_id, json)
     //
     if (json?.card) {
+        console.log(json)
         //setStatus(btn, 'failed', 'This tweet contains a link, which is not supported by this script.')
         return 'This tweet contains a link, which is not supported by this script.'
     }
@@ -345,13 +346,14 @@ async function getTweet(status_id, index, out) {
     let datetime = out.match(/\{date-time(-local)?:[^{}]+\}/) ? out.match(/\{date-time(?:-local)?:([^{}]+)\}/)[1].replace(/[\\/|<>*?:"]/g, v => invalid_chars[v]) : 'YYYYMMDDhhmmss'
     let info = { tweet, medias, user }
     info['status-id'] = status_id
-    info['user-name'] = user.name.replace(/([\\/|*?:"\u200b-\u200d\u2060\ufeff]|🔞)/g, v => invalid_chars[v])
+    info['user-name'] = user.name.replace(/([\\/|*?:"\u200b-\u200d\u200f\u2060\ufeff]|🔞)/g, v => invalid_chars[v])
     info['user-id'] = user.screen_name
     info['date-time'] = formatDate(tweet.created_at, datetime)
     info['date-time-local'] = formatDate(tweet.created_at, datetime, true)
-    info['full-text'] = tweet.full_text.split('\n').join(' ').replace(/\s*https:\/\/t\.co\/\w+/g, '').replace(/[\\/|<>*?:"\u200b-\u200d\u2060\ufeff]/g, v => invalid_chars[v])
+    info['full-text'] = tweet.full_text.split('\n').join(' ').replace(/\s*https:\/\/t\.co\/\w+/g, '').replace(/[\\/|<>*?:"\u200b-\u200d\u200f\u2060\ufeff]/g, v => invalid_chars[v])
     info.author = `${info['user-name']}(@${info['user-id']})`
     info.simple_content = Array.from(info['full-text']).slice(0, 16).join('').trim()
+
     return info;
 }
 const downloader = (function () {
@@ -399,31 +401,47 @@ const downloader = (function () {
                 taskList.forEach((task) => {
                     thread++
                     this.update()
-                    this.download(task, btn, save_history, is_exist, status_id);
+                    this.download(task, btn, save_history, is_exist, status_id).catch(e => {
+                        if (e === 'Invalid filename') {
+                            setTimeout(() => {
+                                thread++
+                                this.update()
+                                task.saveAs = true
+                                navigator.clipboard.writeText(task.name);
+                                this.download(task, btn, save_history, is_exist, status_id).catch(e => {
+                                })
+                            }, 1000)
+                        }
+                    })
                 })
             }
         },
         download: function (task, btn, save_history, is_exist, status_id) {
             //send to background
-            chrome.runtime.sendMessage({ action: "download", task }, (response) => {
-                if (response?.status === "resolved") {
-                    thread--
-                    tasks = tasks.filter(t => t.url !== task.url)
-                    setStatus(btn, 'completed', lang.completed)
-                    if (save_history && !is_exist) {
-                        history.push(status_id)
-                        rwHistory(status_id)
+            return new Promise((resolve, reject) => {
+                chrome.runtime.sendMessage({ action: "download", task }, (response) => {
+                    if (response?.status === "resolved") {
+                        thread--
+                        tasks = tasks.filter(t => t.url !== task.url)
+                        setStatus(btn, 'completed', lang.completed)
+                        if (save_history && !is_exist) {
+                            history.push(status_id)
+                            rwHistory(status_id)
+                        }
+                        this.update()
+                        resolve();
+                    } else if (response?.status === "rejected") {
+                        thread--
+                        failed++
+                        tasks = tasks.filter(t => t.url !== task.url)
+                        setStatus(btn, 'failed', response.error)
+                        this.update()
+                        console.log(response.error, task)
+                        reject(response.error)
                     }
-                    this.update()
-                } else if (response?.status === "rejected") {
-                    thread--
-                    failed++
-                    tasks = tasks.filter(t => t.url !== task.url)
-                    setStatus(btn, 'failed', response.error)
-                    this.update()
-                    console.log(response.error, task)
-                }
-            });
+                    resolve()
+                });
+            })
         },
         //
         // status: function (btn, css, title, style) {

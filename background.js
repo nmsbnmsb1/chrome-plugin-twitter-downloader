@@ -3,8 +3,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'download') {
         chrome.downloads.download({
             url: request.task.url,
-            filename: `Twitter/${request.task.name}`,
-            saveAs: false,
+            filename: !request.task.saveAs ? `Twitter/${request.task.name}` : `Twitter`,
+            saveAs: !request.task.saveAs ? false : true,
             conflictAction: 'uniquify'
         }).then((downloadId) => {
             sendResponse({ status: "resolved", downloadId });
