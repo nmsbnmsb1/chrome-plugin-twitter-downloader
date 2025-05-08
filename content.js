@@ -57,6 +57,9 @@ const SVG = `
 <g class="loading"><circle cx="12" cy="12" r="10" fill="none" stroke="#1DA1F2" stroke-width="4" opacity="0.4" /><path d="M12,2 a10,10 0 0 1 10,10" fill="none" stroke="#1DA1F2" stroke-width="4" stroke-linecap="round" /></g>
 <g class="failed"><circle cx="12" cy="12" r="11" fill="#f33" stroke="currentColor" stroke-width="2" opacity="0.8" /><path d="M14,5 a1,1 0 0 0 -4,0 l0.5,9.5 a1.5,1.5 0 0 0 3,0 z M12,17 a2,2 0 0 0 0,4 a2,2 0 0 0 0,-4" fill="#fff" stroke="none" /></g>
 `;
+const APIRate = {
+
+}
 //Helpers
 function formatDate(i, o, tz) {
     let d = new Date(i)
@@ -129,6 +132,11 @@ async function rwHistory(value) {
     return data;
 }
 async function fetchJson(status_id) {
+    //判断一下调用限制
+    if (APIRate.remaining !== undefined && APIRate.remaining < 1) {
+        throw new Error(`API调用超过限制，计数器将在 ${APIRate.resetTime} 重置`)
+    }
+    //
     let base_url = `https://${host}/i/api/graphql/2ICDjqPd81tulZcYrtpTuQ/TweetResultByRestId`
     let variables = {
         'tweetId': status_id,
@@ -185,7 +193,16 @@ async function fetchJson(status_id) {
         'x-csrf-token': cookies.ct0
     }
     if (cookies.ct0.length == 32) headers['x-guest-token'] = cookies.gt
-    let tweet_detail = await fetch(url, { headers: headers }).then(result => result.json())
+    let tweet_detail = await fetch(url, { headers: headers }).then(result => {
+        //提取api限制参数
+        APIRate.limit = result.headers.get('x-rate-limit-limit');
+        APIRate.remaining = result.headers.get('x-rate-limit-remaining');
+        APIRate.reset = result.headers.get('x-rate-limit-reset');
+        APIRate.resetTime = new Date(parseInt(APIRate.reset) * 1000).toLocaleString(undefined, {
+            hour12: false
+        });
+        return result.json()
+    })
     let tweet_result = tweet_detail.data.tweetResult.result
     return tweet_result.tweet || tweet_result
 }
@@ -286,7 +303,7 @@ async function click(btn, status_id, is_exist, index) {
         middleName = `${info.author}/${status_id}_`;
     } else {
         //抓取主贴信息
-        let mainInfo = await getTweet(info.tweet.in_reply_to_status_id_str, undefined, out)
+        let mainInfo = await getTweet(info.tweet.in_reply_to_status_id_str, undefined, out, false)
         if (typeof mainInfo === 'string') {
             setStatus(btn, 'failed', mainInfo)
             return
@@ -311,34 +328,42 @@ async function click(btn, status_id, is_exist, index) {
             info.out = (out.replace(/\.?\{file-ext\}/, '') + ((info.medias.length > 1 || index) && !out.match('{file-name}') ? '-' + (index ? index - 1 : i) : '') + '.{file-ext}').replace(/\{([^{}:]+)(:[^{}]+)?\}/g, (match, name) => info[name])
             return { url: info.url, name: `${middleName}${info.out}`, info }
         })
-        downloader.add(tasks, btn, save_history, is_exist, status_id, enable_packaging)
+        if (tasks.length)
+            downloader.add(tasks, btn, save_history, is_exist, status_id, enable_packaging)
     }
 }
-async function getTweet(status_id, index, out) {
+async function getTweet(status_id, index, out, checkMedia = true) {
     //加一个缓存，避免多次调用api,但是仅缓存主推文的内容
     let json = getTweetJSONStore(status_id)
     if (!json) {
-        json = await fetchJson(status_id);
+        try {
+            json = await fetchJson(status_id);
+        } catch (e) {
+            return e.message
+        }
     }
     let tweet = json.quoted_status_result?.result?.legacy?.media//此媒体存在,属于引用推文
         || json.quoted_status_result?.result?.legacy
         || json.legacy
     if (!tweet.in_reply_to_status_id_str) setTweetJSONStore(status_id, json)
     //
-    if (json?.card) {
-        //console.log(json)
-        //setStatus(btn, 'failed', 'This tweet contains a link, which is not supported by this script.')
-        return 'This tweet contains a link, which is not supported by this script.'
-    }
-    let medias = tweet.extended_entities && tweet.extended_entities.media
-    if (!Array.isArray(medias)) {
-        //setStatus(btn, 'failed', 'MEDIA_NOT_FOUND')
-        return 'MEDIA_NOT_FOUND'
-    }
-    if (index) medias = [medias[index - 1]]
-    if (medias.length <= 0) {
-        //setStatus(btn, 'failed', 'MEDIA_NOT_FOUND')
-        return 'MEDIA_NOT_FOUND'
+    let medias = []
+    if (checkMedia) {
+        if (json?.card) {
+            //console.log(json)
+            //setStatus(btn, 'failed', 'This tweet contains a link, which is not supported by this script.')
+            return 'This tweet contains a link, which is not supported by this script.'
+        }
+        medias = tweet.extended_entities && tweet.extended_entities.media
+        if (!Array.isArray(medias)) {
+            //setStatus(btn, 'failed', 'MEDIA_NOT_FOUND')
+            return 'MEDIA_NOT_FOUND'
+        }
+        if (index) medias = [medias[index - 1]]
+        if (medias.length <= 0) {
+            //setStatus(btn, 'failed', 'MEDIA_NOT_FOUND')
+            return 'MEDIA_NOT_FOUND'
+        }
     }
     //
     let user = json.core.user_results.result.legacy
@@ -405,6 +430,7 @@ const downloader = (function () {
                         if (e === 'Invalid filename') {
                             setTimeout(() => {
                                 thread++
+                                tasks.push(task)
                                 this.update()
                                 task.saveAs = true
                                 navigator.clipboard.writeText(task.name);
@@ -482,10 +508,10 @@ const downloader = (function () {
                 }
             }
             notifier.firstChild.innerText = thread
-            notifier.firstChild.nextElementSibling.innerText = tasks.length - thread - failed
+            notifier.firstChild.nextElementSibling.innerText = `${APIRate.remaining}(${APIRate.resetTime})`
             if (failed > 0) notifier.lastChild.innerText = failed
             if (thread > 0 || tasks.length > 0 || failed > 0) notifier.classList.add('running')
-            else notifier.classList.remove('running')
+            //else notifier.classList.remove('running')
         }
     }
 })()
