@@ -203,7 +203,7 @@ async function generateMarkdown(tweet_id, fetch = true) {
 }
 //
 //let filename = 'twitter_{user-name}(@{user-id})_{date-time}_{status-id}_{file-type}';
-let filename = '{date-time} {status-id}_{user-name}(@{user-id})_{file-type}';
+let filename = '{date-time}_{file-type}';
 let lang, host, history;
 //初始化
 async function init() {
@@ -273,7 +273,7 @@ async function click(btn, status_id, is_exist, index) {
     setStatus(btn, 'loading')
     //
     let out = (await getStore('filename', filename)).split('\n').join('')
-    let dir = ``;
+    let middleName = ``;
     let info = await getTweet(status_id, index, out)
     if (typeof info === 'string') {
         setStatus(btn, 'failed', info)
@@ -283,7 +283,7 @@ async function click(btn, status_id, is_exist, index) {
     //如果是回复推文
     let isReply = info.tweet.in_reply_to_status_id_str !== undefined
     if (!isReply) {
-        dir = `${info.author}/${info['date-time-local']}${info.simple_content ? ` ${info.simple_content}` : ''}`;
+        middleName = `${info.author}/${status_id}_`;
     } else {
         //抓取主贴信息
         let mainInfo = await getTweet(info.tweet.in_reply_to_status_id_str, undefined, out)
@@ -291,7 +291,7 @@ async function click(btn, status_id, is_exist, index) {
             setStatus(btn, 'failed', mainInfo)
             return
         }
-        dir = `${mainInfo.author}/${mainInfo['date-time-local']}${mainInfo.simple_content ? ` ${mainInfo.simple_content}` : ''}`;
+        middleName = `${mainInfo.author}/${info.tweet.in_reply_to_status_id_str}_re_`;
     }
     //
     let save_history = await getStore('save_history', true)
@@ -309,7 +309,7 @@ async function click(btn, status_id, is_exist, index) {
             info['file-ext'] = info.file.split('.').pop()
             info['file-type'] = media.type.replace('animated_', '')
             info.out = (out.replace(/\.?\{file-ext\}/, '') + ((info.medias.length > 1 || index) && !out.match('{file-name}') ? '-' + (index ? index - 1 : i) : '') + '.{file-ext}').replace(/\{([^{}:]+)(:[^{}]+)?\}/g, (match, name) => info[name])
-            return { url: info.url, name: `${dir}/${isReply ? 're ' : ''}${info.out}`, info }
+            return { url: info.url, name: `${middleName}${info.out}`, info }
         })
         downloader.add(tasks, btn, save_history, is_exist, status_id, enable_packaging)
     }
@@ -326,7 +326,7 @@ async function getTweet(status_id, index, out) {
     if (!tweet.in_reply_to_status_id_str) setTweetJSONStore(status_id, json)
     //
     if (json?.card) {
-        console.log(json)
+        //console.log(json)
         //setStatus(btn, 'failed', 'This tweet contains a link, which is not supported by this script.')
         return 'This tweet contains a link, which is not supported by this script.'
     }
@@ -351,8 +351,8 @@ async function getTweet(status_id, index, out) {
     info['date-time'] = formatDate(tweet.created_at, datetime)
     info['date-time-local'] = formatDate(tweet.created_at, datetime, true)
     info['full-text'] = tweet.full_text.split('\n').join(' ').replace(/\s*https:\/\/t\.co\/\w+/g, '').replace(/[\\/|<>*?:"\u200b-\u200d\u200f\u2060\ufeff]/g, v => invalid_chars[v])
-    info.author = `${info['user-name']}(@${info['user-id']})`
-    info.simple_content = Array.from(info['full-text']).slice(0, 16).join('').trim()
+    info.author = `${info['user-name'] || 'noname'}(@${info['user-id']})`
+    info.simple_content = Array.from(info['full-text']).slice(0, 16).join('').replace(/\./g, '').trim()
 
     return info;
 }
