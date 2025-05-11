@@ -134,7 +134,10 @@ async function rwHistory(value) {
 async function fetchJson(status_id) {
     //判断一下调用限制
     if (APIRate.remaining !== undefined && APIRate.remaining < 1) {
-        throw new Error(`API调用超过限制，计数器将在 ${APIRate.resetTime} 重置`)
+        let currentTime = new Date().toLocaleString(undefined, { hour12: false });
+        if (currentTime < APIRate.resetTime) {
+            throw new Error(`API调用超过限制，计数器将在 ${APIRate.resetTime} 重置`)
+        }
     }
     //
     let base_url = `https://${host}/i/api/graphql/2ICDjqPd81tulZcYrtpTuQ/TweetResultByRestId`
@@ -342,9 +345,12 @@ async function getTweet(status_id, index, out, checkMedia = true) {
             return e.message
         }
     }
+    // console.log(json.quoted_status_result?.result?.legacy?.media)
+    // console.log(json.quoted_status_result?.result?.legacy)
+    // console.log(json.legacy)
     let tweet = json.quoted_status_result?.result?.legacy?.media//此媒体存在,属于引用推文
-        || json.quoted_status_result?.result?.legacy
-        || json.legacy
+        || json.quoted_status_result?.result?.legacy //引用
+        || json.legacy //本体
     if (!tweet.in_reply_to_status_id_str) setTweetJSONStore(status_id, json)
     //
     let medias = []
@@ -354,7 +360,10 @@ async function getTweet(status_id, index, out, checkMedia = true) {
             //setStatus(btn, 'failed', 'This tweet contains a link, which is not supported by this script.')
             return 'This tweet contains a link, which is not supported by this script.'
         }
-        medias = tweet.extended_entities && tweet.extended_entities.media
+        //medias = tweet.extended_entities && tweet.extended_entities.media
+        medias.push(...json.quoted_status_result?.result?.legacy?.media?.extended_entities?.media || [])
+        medias.push(...json.quoted_status_result?.result?.legacy.extended_entities?.media || [])
+        medias.push(...json.legacy?.extended_entities?.media || [])
         if (!Array.isArray(medias)) {
             //setStatus(btn, 'failed', 'MEDIA_NOT_FOUND')
             return 'MEDIA_NOT_FOUND'

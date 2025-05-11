@@ -5,7 +5,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             url: request.task.url,
             filename: !request.task.saveAs ? `Twitter/${request.task.name}` : `Twitter`,
             saveAs: !request.task.saveAs ? false : true,
-            conflictAction: 'uniquify'
+            conflictAction: 'overwrite'
         }).then((downloadId) => {
             sendResponse({ status: "resolved", downloadId });
         }).catch((error) => {
