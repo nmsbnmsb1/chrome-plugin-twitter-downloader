@@ -6,10 +6,10 @@
 
 //Constants
 const Languages = {
-    en: { download: 'Download', completed: 'Download Completed', settings: 'Settings', dialog: { title: 'Download Settings', save: 'Save', save_history: 'Remember download history', clear_history: '(Clear)', clear_confirm: 'Clear download history?', show_sensitive: 'Always show sensitive content', pattern: 'File Name Pattern' }, enable_packaging: 'Package multiple files into a ZIP' },
-    ja: { download: 'ダウンロード', completed: 'ダウンロード完了', settings: '設定', dialog: { title: 'ダウンロード設定', save: '保存', save_history: 'ダウンロード履歴を保存する', clear_history: '(クリア)', clear_confirm: 'ダウンロード履歴を削除する？', show_sensitive: 'センシティブな内容を常に表示する', pattern: 'ファイル名パターン' }, enable_packaging: '複数ファイルを ZIP にパッケージ化する' },
-    zh: { download: '下载', completed: '下载完成', settings: '设置', dialog: { title: '下载设置', save: '保存', save_history: '保存下载记录', clear_history: '(清除)', clear_confirm: '确认要清除下载记录？', show_sensitive: '自动显示敏感的内容', pattern: '文件名格式' }, enable_packaging: '多文件打包成 ZIP' },
-    'zh-Hant': { download: '下載', completed: '下載完成', settings: '設置', dialog: { title: '下載設置', save: '保存', save_history: '保存下載記錄', clear_history: '(清除)', clear_confirm: '確認要清除下載記錄？', show_sensitive: '自動顯示敏感的内容', pattern: '文件名規則' }, enable_packaging: '多文件打包成 ZIP' }
+    en: { download: 'Download', completed: 'Download Completed', settings: 'Settings', dialog: { title: 'Download Settings', save: 'Save', save_history: 'Remember download history', clear_history: '(Clear)', clear_confirm: 'Clear download history?', show_sensitive: 'Always show sensitive content', pattern: 'File Name Pattern', target_list: 'Twitter List ID (for auto-add authors)' }, enable_packaging: 'Package multiple files into a ZIP' },
+    ja: { download: 'ダウンロード', completed: 'ダウンロード完了', settings: '設定', dialog: { title: 'ダウンロード設定', save: '保存', save_history: 'ダウンロード履歴を保存する', clear_history: '(クリア)', clear_confirm: 'ダウンロード履歴を削除する？', show_sensitive: 'センシティブな内容を常に表示する', pattern: 'ファイル名パターン', target_list: 'TwitterリストID（作者自動追加用）' }, enable_packaging: '複数ファイルを ZIP にパッケージ化する' },
+    zh: { download: '下载', completed: '下载完成', settings: '设置', dialog: { title: '下载设置', save: '保存', save_history: '保存下载记录', clear_history: '(清除)', clear_confirm: '确认要清除下载记录？', show_sensitive: '自动显示敏感的内容', pattern: '文件名格式', target_list: 'Twitter列表ID（自动添加博主）' }, enable_packaging: '多文件打包成 ZIP' },
+    'zh-Hant': { download: '下載', completed: '下載完成', settings: '設置', dialog: { title: '下載設置', save: '保存', save_history: '保存下載記錄', clear_history: '(清除)', clear_confirm: '確認要清除下載記錄？', show_sensitive: '自動顯示敏感的内容', pattern: '文件名規則', target_list: 'Twitter列表ID（自動添加博主）' }, enable_packaging: '多文件打包成 ZIP' }
 }
 const CSS = `
 .tmd-down {margin-left: 12px; order: 99;}
@@ -108,6 +108,48 @@ async function getStore(key, defaultValue) {
 async function setStore(key, value) {
     await chrome.storage.local.set({ [key]: value });
 }
+async function addUserToList(userId, listId) {
+    if (!listId) return false;
+
+    let queryId = `EQ9KOQeashjfWnwFvcSSpg`;
+    let base_url = `https://${host}/i/api/graphql/${queryId}/ListAddMember`;
+    let cookies = getCookie();
+    let headers = {
+        'authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
+        'content-type': 'application/json',
+        'x-twitter-active-user': 'yes',
+        'x-twitter-client-language': cookies.lang,
+        'x-csrf-token': cookies.ct0
+    };
+    if (cookies.ct0.length == 32) headers['x-guest-token'] = cookies.gt;
+
+    try {
+        let response = await fetch(base_url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+                "features": { "payments_enabled": false, "profile_label_improvements_pcf_label_in_post_enabled": true, "rweb_tipjar_consumption_enabled": true, "verified_phone_label_enabled": false, "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false, "responsive_web_graphql_timeline_navigation_enabled": true },
+                queryId,
+                variables: {
+                    'listId': listId,
+                    'userId': userId
+                }
+            })
+        });
+
+        if (response.ok) {
+            //console.log(`Successfully added user ${userId} to list ${listId}`);
+            return true;
+        } else {
+            console.error(`Failed to add user to list: ${response.status}`);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error adding user to list:', error);
+        return false;
+    }
+}
+
 const tweetJSONStore = {}
 function getTweetJSONStore(status_id) {
     if (!tweetJSONStore[status_id]) return
@@ -307,6 +349,20 @@ async function click(btn, status_id, is_exist, index) {
         let startName = info.author
         if (startName.startsWith('.')) startName = `_${startName}`
         middleName = `${startName}/${status_id}_`;
+        // Add user to list if it's a main tweet (not a reply)
+        getStore('twitter_lists', []).then(twitterLists => {
+            //console.log(twitterLists)
+            if (twitterLists && twitterLists.length > 0) {
+                let userId = info.userId;
+                // Add user to all enabled lists
+                const enabledLists = twitterLists.filter(list => list.enabled);
+                enabledLists.forEach(list => {
+                    if (list.id.trim()) {
+                        addUserToList(userId, list.id.trim());
+                    }
+                });
+            }
+        });
     } else {
         //抓取主贴信息
         let mainInfo = await getTweet(info.tweet.in_reply_to_status_id_str, undefined, out, false)
@@ -386,9 +442,10 @@ async function getTweet(status_id, index, out, checkMedia = true) {
     }
     //
     let user = json.core.user_results.result.legacy
+    let userId = json.core.user_results.result.rest_id
     let invalid_chars = { '\\': '＼', '\/': '／', '\|': '｜', '<': '＜', '>': '＞', ':': '：', '*': '＊', '?': '？', '"': '＂', '\u200b': '', '\u200c': '', '\u200d': '', '\u200e': '', '\u2060': '', '\ufeff': '', '🔞': '' }
     let datetime = out.match(/\{date-time(-local)?:[^{}]+\}/) ? out.match(/\{date-time(?:-local)?:([^{}]+)\}/)[1].replace(/[\\/|<>*?:"]/g, v => invalid_chars[v]) : 'YYYYMMDDhhmmss'
-    let info = { tweet, medias, user }
+    let info = { tweet, medias, user, userId }
     info['status-id'] = status_id
     info['user-name'] = user.name.replace(/([\\/|*?:"\u200b-\u200f\u2060\ufeff]|🔞)/g, v => invalid_chars[v])
     info['user-id'] = user.screen_name

@@ -1,5 +1,5 @@
 body {
-    width: 300px;
+    width: 350px;
     padding: 10px;
     font-family: Arial, sans-serif;
 }
@@ -20,6 +20,135 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 5px;
+}
+
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e1e8ed;
+}
+
+.settings-section label {
+    font-size: 14px;
+    color: #14171a;
+    font-weight: 600;
+}
+
+.text-input {
+    padding: 8px 12px;
+    border: 1px solid #e1e8ed;
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: white;
+    transition: border-color 0.2s;
+}
+
+.text-input:focus {
+    outline: none;
+    border-color: #1DA1F2;
+    box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
+}
+
+.action-button {
+    background-color: #1DA1F2;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.action-button:hover {
+    background-color: #1991db;
+    transform: translateY(-1px);
+}
+
+.action-button:active {
+    transform: translateY(0);
+}
+
+.add-list-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lists-container {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #e1e8ed;
+    border-radius: 4px;
+    background: white;
+}
+
+.empty-state {
+    padding: 20px;
+    text-align: center;
+    color: #657786;
+    font-style: italic;
+}
+
+.list-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e1e8ed;
+    transition: background-color 0.2s;
+}
+
+.list-item:hover {
+    background-color: #f8f9fa;
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+.list-checkbox {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.list-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.list-name {
+    font-weight: 600;
+    color: #14171a;
+    font-size: 14px;
+}
+
+.list-id {
+    font-size: 12px;
+    color: #657786;
+    font-family: monospace;
+}
+
+.list-remove {
+    background: none;
+    border: none;
+    color: #657786;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 2px;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.list-remove:hover {
+    background-color: #ffebee;
+    color: #e53935;
 }
 
 .directory-selector label {

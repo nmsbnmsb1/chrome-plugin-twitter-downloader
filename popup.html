@@ -2,6 +2,7 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
     <title>Twitter Downloader</title>
     <link rel="stylesheet" type="text/css" href="popup.css">
 </head>
@@ -9,13 +10,28 @@
 <body>
     <div class="container">
         <h1>Twitter Downloader</h1>
-        <!-- <div class="directory-selector">
-            <label for="downloadDir">Download Directory:</label>
-            <input type="text" id="downloadDir" readonly placeholder="Select download directory">
-            <button id="selectDirBtn" class="select-dir-button">Browse</button>
-        </div> -->
-        <div class="directory-selector">
-            <button id="clearHistroyBtn" class="select-dir-button">Clear Histroy</button>
+
+        <div class="settings-section">
+            <label>保存推特并添加博主到列表：</label>
+
+            <div class="lists-container" id="listsContainer">
+                <div class="empty-state" id="emptyState">
+                    No lists configured. Add a list above to get started.
+                </div>
+            </div>
+
+            <div class="add-list-section">
+                <input type="text" id="newListName" placeholder="List Name" class="text-input">
+                <input type="text" id="newListId" placeholder="List ID" class="text-input">
+                <button id="addListBtn" class="action-button">Add List</button>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <label>删除下载历史：</label>
+            <div class="directory-selector">
+                <button id="clearHistroyBtn" class="select-dir-button">Clear History</button>
+            </div>
         </div>
         <!-- <div class="status" id="status">Ready to download</div> -->
     </div>
