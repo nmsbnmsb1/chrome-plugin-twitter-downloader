@@ -253,7 +253,8 @@ function addButtonTo(article) {
         'a[href="/settings/content_you_see"]', //hidden content
         'div.media-image-container', // for tweetdeck
         'div.media-preview-container', // for tweetdeck
-        'div[aria-labelledby]>div:first-child>div[role="button"][tabindex="0"]' //for audio (experimental)
+        'div[aria-labelledby]>div:first-child>div[role="button"][tabindex="0"]', //for audio (experimental)
+        'div[aria-labelledby]>div:first-child' //for audio (experimental)
     ];
     let media = article.querySelector(media_selector.join(','));
     if (media) {
@@ -303,15 +304,21 @@ async function click(btn, status_id, is_exist, index) {
     //如果是回复推文
     let isReply = info.tweet.in_reply_to_status_id_str !== undefined
     if (!isReply) {
-        middleName = `${info.author}/${status_id}_`;
+        let startName = info.author
+        if (startName.startsWith('.')) startName = `_${startName}`
+        middleName = `${startName}/${status_id}_`;
     } else {
         //抓取主贴信息
         let mainInfo = await getTweet(info.tweet.in_reply_to_status_id_str, undefined, out, false)
         if (typeof mainInfo === 'string') {
-            setStatus(btn, 'failed', mainInfo)
-            return
+            let startName = info.author
+            if (startName.startsWith('.')) startName = `_${startName}`
+            middleName = `${startName}/${status_id}_`;
+        } else {
+            let startName = mainInfo.author
+            if (startName.startsWith('.')) startName = `_${startName}`
+            middleName = `${startName}/${info.tweet.in_reply_to_status_id_str}_re_`;
         }
-        middleName = `${mainInfo.author}/${info.tweet.in_reply_to_status_id_str}_re_`;
     }
     //
     let save_history = await getStore('save_history', true)
@@ -351,6 +358,9 @@ async function getTweet(status_id, index, out, checkMedia = true) {
     let tweet = json.quoted_status_result?.result?.legacy?.media//此媒体存在,属于引用推文
         || json.quoted_status_result?.result?.legacy //引用
         || json.legacy //本体
+    if (!tweet) {
+        return 'UNAVALIABLE_TWEET'
+    }
     if (!tweet.in_reply_to_status_id_str) setTweetJSONStore(status_id, json)
     //
     let medias = []
@@ -376,15 +386,15 @@ async function getTweet(status_id, index, out, checkMedia = true) {
     }
     //
     let user = json.core.user_results.result.legacy
-    let invalid_chars = { '\\': '＼', '\/': '／', '\|': '｜', '<': '＜', '>': '＞', ':': '：', '*': '＊', '?': '？', '"': '＂', '\u200b': '', '\u200c': '', '\u200d': '', '\u2060': '', '\ufeff': '', '🔞': '' }
+    let invalid_chars = { '\\': '＼', '\/': '／', '\|': '｜', '<': '＜', '>': '＞', ':': '：', '*': '＊', '?': '？', '"': '＂', '\u200b': '', '\u200c': '', '\u200d': '', '\u200e': '', '\u2060': '', '\ufeff': '', '🔞': '' }
     let datetime = out.match(/\{date-time(-local)?:[^{}]+\}/) ? out.match(/\{date-time(?:-local)?:([^{}]+)\}/)[1].replace(/[\\/|<>*?:"]/g, v => invalid_chars[v]) : 'YYYYMMDDhhmmss'
     let info = { tweet, medias, user }
     info['status-id'] = status_id
-    info['user-name'] = user.name.replace(/([\\/|*?:"\u200b-\u200d\u200f\u2060\ufeff]|🔞)/g, v => invalid_chars[v])
+    info['user-name'] = user.name.replace(/([\\/|*?:"\u200b-\u200f\u2060\ufeff]|🔞)/g, v => invalid_chars[v])
     info['user-id'] = user.screen_name
     info['date-time'] = formatDate(tweet.created_at, datetime)
     info['date-time-local'] = formatDate(tweet.created_at, datetime, true)
-    info['full-text'] = tweet.full_text.split('\n').join(' ').replace(/\s*https:\/\/t\.co\/\w+/g, '').replace(/[\\/|<>*?:"\u200b-\u200d\u200f\u2060\ufeff]/g, v => invalid_chars[v])
+    info['full-text'] = tweet.full_text.split('\n').join(' ').replace(/\s*https:\/\/t\.co\/\w+/g, '').replace(/[\\/|<>*?:"\u200b-\u200f\u2060\ufeff]/g, v => invalid_chars[v])
     info.author = `${info['user-name'] || 'noname'}(@${info['user-id']})`
     info.simple_content = Array.from(info['full-text']).slice(0, 16).join('').replace(/\./g, '').trim()
 
