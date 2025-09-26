@@ -5,12 +5,23 @@
  */
 
 //Constants
-const Languages = {
-    en: { download: 'Download', completed: 'Download Completed', settings: 'Settings', dialog: { title: 'Download Settings', save: 'Save', save_history: 'Remember download history', clear_history: '(Clear)', clear_confirm: 'Clear download history?', show_sensitive: 'Always show sensitive content', pattern: 'File Name Pattern', target_list: 'Twitter List ID (for auto-add authors)' }, enable_packaging: 'Package multiple files into a ZIP' },
-    ja: { download: 'ダウンロード', completed: 'ダウンロード完了', settings: '設定', dialog: { title: 'ダウンロード設定', save: '保存', save_history: 'ダウンロード履歴を保存する', clear_history: '(クリア)', clear_confirm: 'ダウンロード履歴を削除する？', show_sensitive: 'センシティブな内容を常に表示する', pattern: 'ファイル名パターン', target_list: 'TwitterリストID（作者自動追加用）' }, enable_packaging: '複数ファイルを ZIP にパッケージ化する' },
-    zh: { download: '下载', completed: '下载完成', settings: '设置', dialog: { title: '下载设置', save: '保存', save_history: '保存下载记录', clear_history: '(清除)', clear_confirm: '确认要清除下载记录？', show_sensitive: '自动显示敏感的内容', pattern: '文件名格式', target_list: 'Twitter列表ID（自动添加博主）' }, enable_packaging: '多文件打包成 ZIP' },
-    'zh-Hant': { download: '下載', completed: '下載完成', settings: '設置', dialog: { title: '下載設置', save: '保存', save_history: '保存下載記錄', clear_history: '(清除)', clear_confirm: '確認要清除下載記錄？', show_sensitive: '自動顯示敏感的内容', pattern: '文件名規則', target_list: 'Twitter列表ID（自動添加博主）' }, enable_packaging: '多文件打包成 ZIP' }
-}
+const UI_TEXT = {
+    download: 'Download',
+    completed: 'Download Completed',
+    settings: 'Settings',
+    dialog: {
+        title: 'Download Settings',
+        save: 'Save',
+        save_history: 'Remember download history',
+        clear_history: '(Clear)',
+        clear_confirm: 'Clear download history?',
+        show_sensitive: 'Always show sensitive content',
+        pattern: 'File Name Pattern',
+        target_list: 'Twitter List ID (for auto-add authors)'
+    },
+    enable_packaging: 'Package multiple files into a ZIP'
+};
+const lang = UI_TEXT;
 const CSS = `
 .tmd-down {margin-left: 12px; order: 99;}
 .tmd-down:hover > div > div > div > div {color: rgba(29, 161, 242, 1.0);}
@@ -147,7 +158,7 @@ async function addUserToList(userId, listId, userHandle, listName) {
                 const normalizedHandle = userHandle ? userHandle.replace(/^@+/, '') : '';
                 const displayUser = normalizedHandle ? `@${normalizedHandle}` : `User ${userId}`;
                 const displayList = listName || listId;
-                downloader.enqueueMessage(`${displayUser} 已加入列表 ${displayList}`);
+                downloader.enqueueMessage(`${displayUser} added to list ${displayList}`);
             }
             return true;
         } else {
@@ -188,7 +199,7 @@ async function fetchJson(status_id) {
     if (APIRate.remaining !== undefined && APIRate.remaining < 1) {
         let currentTime = new Date().toLocaleString(undefined, { hour12: false });
         if (currentTime < APIRate.resetTime) {
-            throw new Error(`API调用超过限制，计数器将在 ${APIRate.resetTime} 重置`)
+            throw new Error(`API rate limit exceeded; counter resets at ${APIRate.resetTime}`)
         }
     }
     //
@@ -276,10 +287,9 @@ async function generateMarkdown(tweet_id, fetch = true) {
 //
 //let filename = 'twitter_{user-name}(@{user-id})_{date-time}_{status-id}_{file-type}';
 let filename = '{date-time}_{file-type}';
-let lang, host, history;
+let host, history;
 //初始化
 async function init() {
-    lang = Languages[document.querySelector('html').lang] || Languages.zh;
     host = location.hostname;
     history = await rwHistory()
     document.head.insertAdjacentHTML('beforeend', '<style>' + CSS + '</style>')
@@ -477,7 +487,7 @@ const downloader = (function () {
 
     function showNoMessage() {
         if (!messageContainer) return
-        messageContainer.textContent = '无消息'
+        messageContainer.textContent = 'No messages'
         messageContainer.classList.remove('show')
     }
 
