@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
     clearHistroyBtn.addEventListener('click', async () => {
         await chrome.storage.local.set({ ['download_history']: [] });
         clearHistroyBtn.textContent = 'Cleared!';
-        clearHistroyBtn.style.backgroundColor = '#4CAF50';
+        clearHistroyBtn.style.backgroundColor = '#ffffff';
         setTimeout(() => {
             clearHistroyBtn.textContent = 'Clear History';
             clearHistroyBtn.style.backgroundColor = '';

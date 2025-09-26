@@ -34,12 +34,16 @@ const CSS = `
 .tmd-btn:hover {background-color: rgba(29, 161, 242, 0.9);}
 .tmd-tag:hover {background-color: rgba(29, 161, 242, 0.1);}
 .tmd-notifier {display: none; position: fixed; left: 16px; bottom: 16px; color: #000; background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 4px;}
-.tmd-notifier.running {display: flex; align-items: center;}
+.tmd-notifier.running {display: flex; flex-direction: column; align-items: flex-start;}
+.tmd-notifier-stats {display: flex; align-items: center;}
 .tmd-notifier label {display: inline-flex; align-items: center; margin: 0 8px;}
 .tmd-notifier label:before {content: " "; width: 32px; height: 16px; background-position: center; background-repeat: no-repeat;}
-.tmd-notifier label:nth-child(1):before {background-image:url("data:image/svg+xml;charset=utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22><path d=%22M3,14 v5 q0,2 2,2 h14 q2,0 2,-2 v-5 M7,10 l4,4 q1,1 2,0 l4,-4 M12,3 v11%22 fill=%22none%22 stroke=%22%23666%22 stroke-width=%222%22 stroke-linecap=%22round%22 /></svg>");}
-.tmd-notifier label:nth-child(2):before {background-image:url("data:image/svg+xml;charset=utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22><path d=%22M12,2 a1,1 0 0 1 0,20 a1,1 0 0 1 0,-20 M12,5 v7 h6%22 fill=%22none%22 stroke=%22%23999%22 stroke-width=%222%22 stroke-linejoin=%22round%22 stroke-linecap=%22round%22 /></svg>");}
-.tmd-notifier label:nth-child(3):before {background-image:url("data:image/svg+xml;charset=utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22><path d=%22M12,0 a2,2 0 0 0 0,24 a2,2 0 0 0 0,-24%22 fill=%22%23f66%22 stroke=%22none%22 /><path d=%22M14.5,5 a1,1 0 0 0 -5,0 l0.5,9 a1,1 0 0 0 4,0 z M12,17 a2,2 0 0 0 0,5 a2,2 0 0 0 0,-5%22 fill=%22%23fff%22 stroke=%22none%22 /></svg>");}
+.tmd-notifier-stats label:nth-of-type(1):before {background-image:url("data:image/svg+xml;charset=utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22><path d=%22M3,14 v5 q0,2 2,2 h14 q2,0 2,-2 v-5 M7,10 l4,4 q1,1 2,0 l4,-4 M12,3 v11%22 fill=%22none%22 stroke=%22%23666%22 stroke-width=%222%22 stroke-linecap=%22round%22 /></svg>");}
+.tmd-notifier-stats label:nth-of-type(2):before {background-image:url("data:image/svg+xml;charset=utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22><path d=%22M12,2 a1,1 0 0 1 0,20 a1,1 0 0 1 0,-20 M12,5 v7 h6%22 fill=%22none%22 stroke=%22%23999%22 stroke-width=%222%22 stroke-linejoin=%22round%22 stroke-linecap=%22round%22 /></svg>");}
+.tmd-notifier-stats label:nth-of-type(3):before {background-image:url("data:image/svg+xml;charset=utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22><path d=%22M12,0 a2,2 0 0 0 0,24 a2,2 0 0 0 0,-24%22 fill=%22%23f66%22 stroke=%22none%22 /><path d=%22M14.5,5 a1,1 0 0 0 -5,0 l0.5,9 a1,1 0 0 0 4,0 z M12,17 a2,2 0 0 0 0,5 a2,2 0 0 0 0,-5%22 fill=%22%23fff%22 stroke=%22none%22 /></svg>");}
+.tmd-notifier-stats span {margin: 0 4px; color: #999;}
+.tmd-notifier-message {display: block; width: 100%; margin-top: 4px; padding-top: 4px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999; text-align: center;}
+.tmd-notifier-message.show {color: #1DA1F2;}
 .tmd-down.tmd-img {position: absolute; right: 0; bottom: 0; display: none !important;}
 .tmd-down.tmd-img > div {display: flex; border-radius: 99px; margin: 2px; background-color: rgba(255,255,255, 0.6);}
 .tmd-down.tmd-img > div > div {display: flex; margin: 6px; color: #fff !important;}
@@ -108,7 +112,7 @@ async function getStore(key, defaultValue) {
 async function setStore(key, value) {
     await chrome.storage.local.set({ [key]: value });
 }
-async function addUserToList(userId, listId) {
+async function addUserToList(userId, listId, userHandle, listName) {
     if (!listId) return false;
 
     let queryId = `EQ9KOQeashjfWnwFvcSSpg`;
@@ -139,6 +143,12 @@ async function addUserToList(userId, listId) {
 
         if (response.ok) {
             //console.log(`Successfully added user ${userId} to list ${listId}`);
+            if (downloader?.enqueueMessage) {
+                const normalizedHandle = userHandle ? userHandle.replace(/^@+/, '') : '';
+                const displayUser = normalizedHandle ? `@${normalizedHandle}` : `User ${userId}`;
+                const displayList = listName || listId;
+                downloader.enqueueMessage(`${displayUser} 已加入列表 ${displayList}`);
+            }
             return true;
         } else {
             console.error(`Failed to add user to list: ${response.status}`);
@@ -358,7 +368,7 @@ async function click(btn, status_id, is_exist, index) {
                 const enabledLists = twitterLists.filter(list => list.enabled);
                 enabledLists.forEach(list => {
                     if (list.id.trim()) {
-                        addUserToList(userId, list.id.trim());
+                        addUserToList(userId, list.id.trim(), info['user-id'], list.name);
                     }
                 });
             }
@@ -459,136 +469,233 @@ async function getTweet(status_id, index, out, checkMedia = true) {
 }
 const downloader = (function () {
     let tasks = [], thread = 0, failed = 0, notifier, has_failed = false
-    return {
-        add: function (taskList, btn, save_history, is_exist, status_id, enable_packaging) {
-            tasks.push(...taskList)
-            this.update()
-            if (enable_packaging) {
-                let zip = new JSZip()
-                let completedCount = 0
-                taskList.forEach((task, i) => {
-                    thread++
-                    this.update()
-                    fetch(task.url)
-                        .then(response => response.blob())
-                        .then(blob => {
-                            zip.file(task.name, blob)
-                            tasks = tasks.filter(t => t.url !== task.url)
-                            thread--
-                            this.update()
-                            completedCount++
-                            if (completedCount === taskList.length) {
-                                zip.generateAsync({ type: 'blob' }).then(content => {
-                                    let a = document.createElement('a')
-                                    a.href = URL.createObjectURL(content)
-                                    a.download = `${taskList[0].name}.zip`
-                                    a.click()
-                                    setStatus(btn, 'completed', lang.completed)
-                                    if (save_history && !is_exist) {
-                                        history.push(status_id)
-                                        rwHistory(status_id)
-                                    }
-                                })
-                            }
-                        })
-                        .catch(error => {
-                            failed++
-                            tasks = tasks.filter(t => t.url !== task.url)
-                            setStatus(btn, 'failed', error.message)
-                            this.update()
-                        })
-                })
-            } else {
-                taskList.forEach((task) => {
-                    thread++
-                    this.update()
-                    this.download(task, btn, save_history, is_exist, status_id).catch(e => {
-                        if (e === 'Invalid filename') {
-                            setTimeout(() => {
-                                thread++
-                                tasks.push(task)
-                                this.update()
-                                task.saveAs = true
-                                navigator.clipboard.writeText(task.name);
-                                this.download(task, btn, save_history, is_exist, status_id).catch(e => {
-                                })
-                            }, 1000)
+    let notifierStats, notifierThreadLabel, notifierRateLabel, notifierFailedLabel, failedSeparator
+    let messageContainer
+    const messageQueue = []
+    let messageActive = false
+    let notifierPersistent = false
+
+    function showNoMessage() {
+        if (!messageContainer) return
+        messageContainer.textContent = '无消息'
+        messageContainer.classList.remove('show')
+    }
+
+    function ensureNotifier() {
+        if (!notifier) {
+            notifier = document.createElement('div')
+            notifier.title = 'Twitter Media Downloader'
+            notifier.classList.add('tmd-notifier')
+
+            notifierStats = document.createElement('div')
+            notifierStats.classList.add('tmd-notifier-stats')
+            notifier.appendChild(notifierStats)
+
+            notifierThreadLabel = document.createElement('label')
+            notifierRateLabel = document.createElement('label')
+            const separator = document.createElement('span')
+            separator.textContent = '|'
+
+            notifierStats.appendChild(notifierThreadLabel)
+            notifierStats.appendChild(separator)
+            notifierStats.appendChild(notifierRateLabel)
+
+            messageContainer = document.createElement('div')
+            messageContainer.classList.add('tmd-notifier-message')
+            notifier.appendChild(messageContainer)
+            showNoMessage()
+
+            document.body.appendChild(notifier)
+        }
+    }
+
+    function resetFailureIndicators() {
+        if (notifierFailedLabel) {
+            notifierFailedLabel.remove()
+            notifierFailedLabel = null
+        }
+        if (failedSeparator) {
+            failedSeparator.remove()
+            failedSeparator = null
+        }
+    }
+
+    function ensureFailureControls() {
+        if (!notifierStats) return
+        if (!failedSeparator) {
+            failedSeparator = document.createElement('span')
+            failedSeparator.textContent = '|'
+            notifierStats.appendChild(failedSeparator)
+        }
+        if (!notifierFailedLabel) {
+            notifierFailedLabel = document.createElement('label')
+            notifierStats.appendChild(notifierFailedLabel)
+            notifierFailedLabel.onclick = () => {
+                failed = 0
+                has_failed = false
+                resetFailureIndicators()
+                updateNotifier()
+            }
+        }
+    }
+
+    function updateNotifier() {
+        ensureNotifier()
+        if (!notifierThreadLabel || !notifierRateLabel) return
+
+        notifierThreadLabel.innerText = thread
+        const remainingText = APIRate.remaining !== undefined ? APIRate.remaining : '-'
+        const resetText = APIRate.resetTime || '-'
+        notifierRateLabel.innerText = `${remainingText}(${resetText})`
+
+        if (failed > 0 && !has_failed) {
+            has_failed = true
+            ensureFailureControls()
+        } else if (failed === 0 && has_failed) {
+            has_failed = false
+            resetFailureIndicators()
+        }
+
+        if (failed > 0 && notifierFailedLabel) {
+            notifierFailedLabel.innerText = failed
+        }
+
+        if (!notifierPersistent && (thread > 0 || tasks.length > 0 || failed > 0 || messageActive || messageQueue.length > 0)) {
+            notifierPersistent = true
+        }
+
+        if (notifierPersistent || thread > 0 || tasks.length > 0 || failed > 0 || messageActive) {
+            notifier.classList.add('running')
+        } else if (!notifierPersistent && notifier) {
+            notifier.classList.remove('running')
+        }
+    }
+
+    function processMessageQueue() {
+        if (messageActive) return
+        const nextMessage = messageQueue.shift()
+        if (!nextMessage) {
+            showNoMessage()
+            updateNotifier()
+            return
+        }
+
+        ensureNotifier()
+        if (messageContainer) {
+            messageContainer.textContent = nextMessage
+            messageContainer.classList.add('show')
+        }
+        messageActive = true
+        if (notifier) notifier.classList.add('running')
+
+        setTimeout(() => {
+            if (messageContainer) {
+                showNoMessage()
+            }
+            messageActive = false
+            processMessageQueue()
+        }, 1500)
+    }
+
+    function enqueueMessage(message) {
+        if (!message) return
+        notifierPersistent = true
+        messageQueue.push(message)
+        processMessageQueue()
+    }
+
+    function downloadTask(task, btn, save_history, is_exist, status_id) {
+        return new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ action: "download", task }, (response) => {
+                if (response?.status === "resolved") {
+                    thread--
+                    tasks = tasks.filter(t => t.url !== task.url)
+                    setStatus(btn, 'completed', lang.completed)
+                    if (save_history && !is_exist) {
+                        history.push(status_id)
+                        rwHistory(status_id)
+                    }
+                    updateNotifier()
+                    resolve()
+                } else if (response?.status === "rejected") {
+                    thread--
+                    failed++
+                    tasks = tasks.filter(t => t.url !== task.url)
+                    setStatus(btn, 'failed', response.error)
+                    updateNotifier()
+                    console.log(response.error, task)
+                    reject(response.error)
+                }
+                resolve()
+            })
+        })
+    }
+
+    function addTasks(taskList, btn, save_history, is_exist, status_id, enable_packaging) {
+        tasks.push(...taskList)
+        updateNotifier()
+        if (enable_packaging) {
+            let zip = new JSZip()
+            let completedCount = 0
+            taskList.forEach(task => {
+                thread++
+                updateNotifier()
+                fetch(task.url)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        zip.file(task.name, blob)
+                        tasks = tasks.filter(t => t.url !== task.url)
+                        thread--
+                        updateNotifier()
+                        completedCount++
+                        if (completedCount === taskList.length) {
+                            zip.generateAsync({ type: 'blob' }).then(content => {
+                                let a = document.createElement('a')
+                                a.href = URL.createObjectURL(content)
+                                a.download = `${taskList[0].name}.zip`
+                                a.click()
+                                setStatus(btn, 'completed', lang.completed)
+                                if (save_history && !is_exist) {
+                                    history.push(status_id)
+                                    rwHistory(status_id)
+                                }
+                                updateNotifier()
+                            })
                         }
                     })
-                })
-            }
-        },
-        download: function (task, btn, save_history, is_exist, status_id) {
-            //send to background
-            return new Promise((resolve, reject) => {
-                chrome.runtime.sendMessage({ action: "download", task }, (response) => {
-                    if (response?.status === "resolved") {
-                        thread--
-                        tasks = tasks.filter(t => t.url !== task.url)
-                        setStatus(btn, 'completed', lang.completed)
-                        if (save_history && !is_exist) {
-                            history.push(status_id)
-                            rwHistory(status_id)
-                        }
-                        this.update()
-                        resolve();
-                    } else if (response?.status === "rejected") {
-                        thread--
+                    .catch(error => {
                         failed++
                         tasks = tasks.filter(t => t.url !== task.url)
-                        setStatus(btn, 'failed', response.error)
-                        this.update()
-                        console.log(response.error, task)
-                        reject(response.error)
-                    }
-                    resolve()
-                });
+                        setStatus(btn, 'failed', error.message)
+                        updateNotifier()
+                    })
             })
-        },
-        //
-        // status: function (btn, css, title, style) {
-        //     if (css) {
-        //         btn.classList.remove('download', 'completed', 'loading', 'failed')
-        //         btn.classList.add(css)
-        //     }
-        //     if (title) btn.title = title
-        //     if (style) btn.style.cssText = style
-        // },
-        // storage: async function (value) {
-        //     let data = await getStore('download_history', [])
-        //     let data_length = data.length
-        //     if (value) {
-        //         if (Array.isArray(value)) data = data.concat(value)
-        //         else if (data.indexOf(value) < 0) data.push(value)
-        //     } else return data
-        //     if (data.length > data_length) setStore('download_history', data)
-        // },
-        update: function () {
-            if (!notifier) {
-                notifier = document.createElement('div')
-                notifier.title = 'Twitter Media Downloader'
-                notifier.classList.add('tmd-notifier')
-                notifier.innerHTML = '<label>0</label>|<label>0</label>'
-                document.body.appendChild(notifier)
-            }
-            if (failed > 0 && !has_failed) {
-                has_failed = true
-                notifier.innerHTML += '|'
-                let clear = document.createElement('label')
-                notifier.appendChild(clear)
-                clear.onclick = () => {
-                    notifier.innerHTML = '<label>0</label>|<label>0</label>'
-                    failed = 0
-                    has_failed = false
-                    this.update()
-                }
-            }
-            notifier.firstChild.innerText = thread
-            notifier.firstChild.nextElementSibling.innerText = `${APIRate.remaining}(${APIRate.resetTime})`
-            if (failed > 0) notifier.lastChild.innerText = failed
-            if (thread > 0 || tasks.length > 0 || failed > 0) notifier.classList.add('running')
-            //else notifier.classList.remove('running')
+        } else {
+            taskList.forEach(task => {
+                thread++
+                updateNotifier()
+                downloadTask(task, btn, save_history, is_exist, status_id).catch(e => {
+                    if (e === 'Invalid filename') {
+                        setTimeout(() => {
+                            thread++
+                            tasks.push(task)
+                            updateNotifier()
+                            task.saveAs = true
+                            navigator.clipboard.writeText(task.name)
+                            downloadTask(task, btn, save_history, is_exist, status_id).catch(() => {
+                            })
+                        }, 1000)
+                    }
+                })
+            })
         }
+    }
+
+    return {
+        add: addTasks,
+        download: downloadTask,
+        update: updateNotifier,
+        enqueueMessage
     }
 })()
 
