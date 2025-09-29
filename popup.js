@@ -5,8 +5,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const addListBtn = document.getElementById('addListBtn');
     const listsContainer = document.getElementById('listsContainer');
     const emptyState = document.getElementById('emptyState');
+    const modifierKeyHint = document.querySelector('.hint .key');
 
     let twitterLists = [];
+
+    if (modifierKeyHint) {
+        const platform = (navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
+        let keyLabel = 'Alt';
+
+        if (platform.includes('mac')) {
+            keyLabel = '⌥ Option';
+        } else {
+            keyLabel = 'Alt';
+        }
+
+        modifierKeyHint.textContent = keyLabel;
+    }
 
     // Load saved lists from storage
     function loadLists() {

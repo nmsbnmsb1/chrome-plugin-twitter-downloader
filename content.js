@@ -9,6 +9,7 @@ const UI_TEXT = {
     download: 'Download',
     completed: 'Download Completed',
     settings: 'Settings',
+    skip_list_add: 'Skipped adding {user} to lists',
     dialog: {
         title: 'Download Settings',
         save: 'Save',
@@ -330,7 +331,7 @@ function addButtonTo(article) {
         setStatus(btn_down, 'tmd-down')
         setStatus(btn_down, is_exist ? 'completed' : 'download', is_exist ? lang.completed : lang.download)
         btn_group.insertBefore(btn_down, btn_share.nextSibling)
-        btn_down.onclick = () => click(btn_down, status_id, is_exist)
+        btn_down.onclick = (event) => click(btn_down, status_id, is_exist, undefined, event)
         let btn_show = article.querySelector('div[aria-labelledby] div[role="button"][tabindex="0"]:not([data-testid]) > div[dir] > span > span')
         if (btn_show) btn_show.click()
     }
@@ -347,16 +348,17 @@ function addButtonToMedia(listitems) {
         btn_down.classList.add('tmd-down', 'tmd-media')
         setStatus(btn_down, is_exist ? 'completed' : 'download', is_exist ? lang.completed : lang.download)
         li.appendChild(btn_down)
-        btn_down.onclick = () => click(btn_down, status_id, is_exist)
+        btn_down.onclick = (event) => click(btn_down, status_id, is_exist, undefined, event)
     })
 }
-async function click(btn, status_id, is_exist, index) {
+async function click(btn, status_id, is_exist, index, evt) {
     if (btn.classList.contains('loading')) return
     //
     setStatus(btn, 'loading')
     //
     let out = (await getStore('filename', filename)).split('\n').join('')
     let middleName = ``;
+    const skipAutoAdd = evt?.altKey === true;
     let info = await getTweet(status_id, index, out)
     if (typeof info === 'string') {
         setStatus(btn, 'failed', info)
@@ -370,19 +372,25 @@ async function click(btn, status_id, is_exist, index) {
         if (startName.startsWith('.')) startName = `_${startName}`
         middleName = `${startName}/${status_id}_`;
         // Add user to list if it's a main tweet (not a reply)
-        getStore('twitter_lists', []).then(twitterLists => {
-            //console.log(twitterLists)
-            if (twitterLists && twitterLists.length > 0) {
-                let userId = info.userId;
-                // Add user to all enabled lists
-                const enabledLists = twitterLists.filter(list => list.enabled);
-                enabledLists.forEach(list => {
-                    if (list.id.trim()) {
-                        addUserToList(userId, list.id.trim(), info['user-id'], list.name);
-                    }
-                });
-            }
-        });
+        if (!skipAutoAdd) {
+            getStore('twitter_lists', []).then(twitterLists => {
+                //console.log(twitterLists)
+                if (twitterLists && twitterLists.length > 0) {
+                    let userId = info.userId;
+                    // Add user to all enabled lists
+                    const enabledLists = twitterLists.filter(list => list.enabled);
+                    enabledLists.forEach(list => {
+                        if (list.id.trim()) {
+                            addUserToList(userId, list.id.trim(), info['user-id'], list.name);
+                        }
+                    });
+                }
+            });
+        } else if (downloader?.enqueueMessage) {
+            const normalizedHandle = (info['user-id'] || '').replace(/^@+/, '');
+            const displayUser = normalizedHandle ? `@${normalizedHandle}` : info.author;
+            downloader.enqueueMessage(lang.skip_list_add.replace('{user}', displayUser));
+        }
     } else {
         //抓取主贴信息
         let mainInfo = await getTweet(info.tweet.in_reply_to_status_id_str, undefined, out, false)
